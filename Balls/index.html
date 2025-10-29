@@ -1,94 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Bouncing Balls with Ripple</title>
 <style>
-body {margin:0;display:flex;flex-direction:column;align-items:center;
-      justify-content:center;background:#111;color:white;font-family:sans-serif;}
-canvas {border:3px solid #0f0;margin:10px;}
-.buttons {display:grid;grid-template-columns:repeat(3,60px);gap:5px;}
-button {height:60px;width:60px;font-size:20px;border-radius:10px;border:none;
-        background:#333;color:#0f0;}
-#score, #highscore {font-size:24px;margin:5px;}
+  body { margin: 0; overflow: hidden; background: #111; }
+  canvas { display: block; }
 </style>
 </head>
 <body>
-<div id="score">Score: 0</div>
-<div id="highscore">High Score: 0</div>
-<canvas id="c" width="300" height="300"></canvas>
-<div class="buttons">
-  <div></div><button id="up">▲</button><div></div>
-  <button id="left">◀</button><button id="down">▼</button><button id="right">▶</button>
-</div>
+<canvas id="canvas"></canvas>
 <script>
-const ctx = c.getContext("2d");
-const size=15, cells=300/size;
-let x=10, y=10, dx=1, dy=0;
-let trail=[[x,y]], len=5;
-let fx=5, fy=5;
-let score=0;
-let alive=true;
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-// Local high score
-let highScore = localStorage.getItem("snakeHighScore") || 0;
-document.getElementById("highscore").textContent = "High Score: " + highScore;
+const gravity = 0.5;
+const friction = 0.9;
 
-function draw(){
-  if(!alive) return;
-  
-  x=(x+dx+cells)%cells;
-  y=(y+dy+cells)%cells;
-  
-  // self collision
-  for(const [px,py] of trail){
-    if(px===x && py===y){
-      alive=false;
-      if(score > highScore){
-          highScore = score;
-          localStorage.setItem("snakeHighScore", highScore);
-          alert("Game Over! New High Score: " + score);
-      } else {
-          alert("Game Over! Score: " + score + "\nHigh Score: " + highScore);
+let repulsePoints = [];
+let ripples = [];
+
+class Ball {
+  constructor(x, y, radius, color) {
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+    this.color = color;
+    this.vx = Math.random() * 4 - 2;
+    this.vy = Math.random() * 4 - 2;
+  }
+
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+  }
+
+  update() {
+    // apply gravity
+    this.vy += gravity;
+
+    // apply repulsion
+    repulsePoints.forEach(p => {
+      const dx = this.x - p.x;
+      const dy = this.y - p.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < p.radius) {
+        const force = (p.radius - dist) / p.radius * 8; // push strength
+        this.vx += (dx / dist) * force;
+        this.vy += (dy / dist) * force;
       }
-      return;
+    });
+
+    // bounce off floor/ceiling
+    if (this.y + this.radius > canvas.height) {
+      this.vy = -this.vy * friction;
+      this.y = canvas.height - this.radius;
     }
+    if (this.y - this.radius < 0) {
+      this.vy = -this.vy * friction;
+      this.y = this.radius;
+    }
+
+    // bounce off walls
+    if (this.x + this.radius > canvas.width || this.x - this.radius < 0) {
+      this.vx = -this.vx * friction;
+      if (this.x + this.radius > canvas.width) this.x = canvas.width - this.radius;
+      if (this.x - this.radius < 0) this.x = this.radius;
+    }
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    this.draw();
   }
-
-  trail.push([x,y]);
-  if(x===fx && y===fy){
-    len++;
-    score++;
-    document.getElementById("score").textContent="Score: "+score;
-    fx=Math.floor(Math.random()*cells);
-    fy=Math.floor(Math.random()*cells);
-  }
-  while(trail.length>len) trail.shift();
-
-  ctx.fillStyle="black";
-  ctx.fillRect(0,0,300,300);
-
-  ctx.fillStyle="lime";
-  for(const [px,py] of trail) ctx.fillRect(px*size,py*size,size-1,size-1);
-
-  ctx.fillStyle="red";
-  ctx.fillRect(fx*size,fy*size,size-1,size-1);
 }
 
-setInterval(draw,100);
+// ripple effect
+class Ripple {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 0;
+    this.alpha = 0.8;
+  }
 
-function turn(nx,ny){if(nx===-dx && ny===-dy) return; dx=nx; dy=ny;}
-up.onclick=()=>turn(0,-1);
-down.onclick=()=>turn(0,1);
-left.onclick=()=>turn(-1,0);
-right.onclick=()=>turn(1,0);
+  draw() {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+    ctx.strokeStyle = `rgba(255,255,255,${this.alpha})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    this.radius += 2;
+    this.alpha -= 0.03;
+  }
+}
 
-// swipe controls
-let sx,sy;
-c.addEventListener("touchstart",e=>{sx=e.touches[0].clientX;sy=e.touches[0].clientY;});
-c.addEventListener("touchend",e=>{
-  let dx2=e.changedTouches[0].clientX-sx, dy2=e.changedTouches[0].clientY-sy;
-  if(Math.abs(dx2)>Math.abs(dy2)) turn(dx2>0?1:-1,0);
-  else turn(0,dy2>0?1:-1);
+const balls = [];
+for (let i=0; i<30; i++){
+  const radius = Math.random()*20 + 10;
+  const x = Math.random()*(canvas.width-radius*2) + radius;
+  const y = Math.random()*(canvas.height-radius*2) + radius;
+  const color = `hsl(${Math.random()*360},70%,50%)`;
+  balls.push(new Ball(x,y,radius,color));
+}
+
+function animate() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  // update balls
+  balls.forEach(ball => ball.update());
+
+  // draw ripples
+  ripples.forEach((r, i) => {
+    r.draw();
+    if (r.alpha <= 0) ripples.splice(i,1);
+  });
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+function addRepulse(x, y){
+  repulsePoints.push({x, y, radius:150});
+  ripples.push(new Ripple(x, y));
+  setTimeout(()=>{ repulsePoints.shift() }, 200); // repulse lasts 0.2s
+}
+
+// mouse and touch events
+canvas.addEventListener('mousedown', e => addRepulse(e.clientX, e.clientY));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (let t of e.touches) addRepulse(t.clientX, t.clientY);
+}, {passive:false});
+
+// resize canvas
+window.addEventListener('resize', ()=>{
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 });
 </script>
 </body>
