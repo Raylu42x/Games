@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Tower Defense</title>
+<style>
+    body { margin:0; background:#222; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; }
+    canvas { background:#333; touch-action:none; }
+    #scoreboard { color:#fff; font-size:20px; margin:10px; }
+</style>
+</head>
+<body>
+<div id="scoreboard">Score: 0 | High Score: 0</div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let score = 0;
+let highScore = localStorage.getItem('tdHighScore') || 0;
+
+// Path for enemies (array of points)
+const path = [
+    {x:50,y:50},{x:750,y:50},{x:750,y:550},{x:50,y:550},{x:50,y:300},{x:750,y:300}
+];
+
+let enemies = [];
+let towers = [];
+let spawnTimer = 0;
+
+// Enemy class
+class Enemy {
+    constructor() {
+        this.x = path[0].x;
+        this.y = path[0].y;
+        this.radius = 15;
+        this.health = 3;
+        this.pathIndex = 0;
+        this.speed = 1;
+    }
+    update() {
+        if(this.pathIndex >= path.length-1) return;
+        const target = path[this.pathIndex+1];
+        const dx = target.x - this.x;
+        const dy = target.y - this.y;
+        const dist = Math.hypot(dx,dy);
+        if(dist < this.speed) {
+            this.x = target.x;
+            this.y = target.y;
+            this.pathIndex++;
+        } else {
+            this.x += dx/dist*this.speed;
+            this.y += dy/dist*this.speed;
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+        ctx.fillStyle='red';
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+// Tower class
+class Tower {
+    constructor(x,y) {
+        this.x = x;
+        this.y = y;
+        this.radius = 20;
+        this.range = 100;
+        this.fireRate = 60; // frames
+        this.cooldown = 0;
+    }
+    update() {
+        if(this.cooldown>0) this.cooldown--;
+        // find enemy in range
+        const target = enemies.find(e => Math.hypot(e.x-this.x,e.y-this.y)<this.range);
+        if(target && this.cooldown===0){
+            target.health--;
+            this.cooldown = this.fireRate;
+            if(target.health<=0){
+                score++;
+                if(score>highScore){ highScore = score; localStorage.setItem('tdHighScore', highScore);}
+                enemies.splice(enemies.indexOf(target),1);
+            }
+        }
+    }
+    draw() {
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+        ctx.fillStyle='blue';
+        ctx.fill();
+        ctx.closePath();
+    }
+}
+
+// Spawn enemies
+function spawnEnemies(){
+    spawnTimer--;
+    if(spawnTimer<=0){
+        enemies.push(new Enemy());
+        spawnTimer = 120; // spawn every 2 sec (assuming 60fps)
+    }
+}
+
+// Game loop
+function update(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    spawnEnemies();
+
+    enemies.forEach(e=>{ e.update(); e.draw(); });
+    towers.forEach(t=>{ t.update(); t.draw(); });
+
+    // Draw path
+    ctx.beginPath();
+    ctx.strokeStyle='yellow';
+    ctx.lineWidth=3;
+    ctx.moveTo(path[0].x,path[0].y);
+    for(let p of path) ctx.lineTo(p.x,p.y);
+    ctx.stroke();
+    ctx.closePath();
+
+    document.getElementById('scoreboard').innerText = `Score: ${score} | High Score: ${highScore}`;
+    requestAnimationFrame(update);
+}
+
+// Place tower on click/tap
+canvas.addEventListener('click', e=>{
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    towers.push(new Tower(x,y));
+});
+
+canvas.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const y = e.touches[0].clientY - rect.top;
+    towers.push(new Tower(x,y));
+}, {passive:false});
+
+update();
+</script>
+</body>
+</html>
