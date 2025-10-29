@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mini Tower Defense</title>
 <style>
-    body { margin:0; background:#222; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; }
-    canvas { background:#333; touch-action:none; }
-    #scoreboard { color:#fff; font-size:20px; margin:10px; }
+body { margin:0; background:#222; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; }
+canvas { background:#333; touch-action:none; }
+#scoreboard { color:#fff; font-size:20px; margin:10px; }
 </style>
 </head>
 <body>
-<div id="scoreboard">Score: 0 | High Score: 0</div>
+<div id="scoreboard">Score: 0 | High Score: 0 | Towers: 0/5</div>
 <canvas id="gameCanvas" width="800" height="600"></canvas>
 
 <script>
@@ -20,14 +20,16 @@ const ctx = canvas.getContext('2d');
 
 let score = 0;
 let highScore = localStorage.getItem('tdHighScore') || 0;
+let towerLimit = 5; // starting tower limit
 
-// Path for enemies (array of points)
+// Path for enemies
 const path = [
     {x:50,y:50},{x:750,y:50},{x:750,y:550},{x:50,y:550},{x:50,y:300},{x:750,y:300}
 ];
 
 let enemies = [];
 let towers = [];
+let projectiles = [];
 let spawnTimer = 0;
 
 // Enemy class
@@ -58,8 +60,10 @@ class Enemy {
     draw() {
         ctx.beginPath();
         ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-        ctx.fillStyle='red';
+        ctx.fillStyle='orange';
         ctx.fill();
+        ctx.strokeStyle='black';
+        ctx.stroke();
         ctx.closePath();
     }
 }
@@ -70,28 +74,57 @@ class Tower {
         this.x = x;
         this.y = y;
         this.radius = 20;
-        this.range = 100;
-        this.fireRate = 60; // frames
+        this.range = 120;
+        this.fireRate = 30; // frames
         this.cooldown = 0;
     }
     update() {
         if(this.cooldown>0) this.cooldown--;
-        // find enemy in range
         const target = enemies.find(e => Math.hypot(e.x-this.x,e.y-this.y)<this.range);
         if(target && this.cooldown===0){
-            target.health--;
+            projectiles.push(new Projectile(this.x,this.y,target));
             this.cooldown = this.fireRate;
-            if(target.health<=0){
+        }
+    }
+    draw() {
+        ctx.fillStyle='blue';
+        ctx.fillRect(this.x-this.radius,this.y-this.radius,this.radius*2,this.radius*2);
+        ctx.strokeStyle='white';
+        ctx.strokeRect(this.x-this.radius,this.y-this.radius,this.radius*2,this.radius*2);
+    }
+}
+
+// Projectile class
+class Projectile {
+    constructor(x,y,target){
+        this.x = x;
+        this.y = y;
+        this.target = target;
+        this.radius = 5;
+        this.speed = 5;
+    }
+    update() {
+        if(!this.target) return;
+        const dx = this.target.x - this.x;
+        const dy = this.target.y - this.y;
+        const dist = Math.hypot(dx,dy);
+        if(dist < this.speed) {
+            this.target.health--;
+            if(this.target.health<=0){
                 score++;
                 if(score>highScore){ highScore = score; localStorage.setItem('tdHighScore', highScore);}
-                enemies.splice(enemies.indexOf(target),1);
+                enemies.splice(enemies.indexOf(this.target),1);
             }
+            return true; // mark for removal
+        } else {
+            this.x += dx/dist*this.speed;
+            this.y += dy/dist*this.speed;
         }
     }
     draw() {
         ctx.beginPath();
         ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
-        ctx.fillStyle='blue';
+        ctx.fillStyle='yellow';
         ctx.fill();
         ctx.closePath();
     }
@@ -102,7 +135,7 @@ function spawnEnemies(){
     spawnTimer--;
     if(spawnTimer<=0){
         enemies.push(new Enemy());
-        spawnTimer = 120; // spawn every 2 sec (assuming 60fps)
+        spawnTimer = 90; // every 1.5 sec
     }
 }
 
@@ -113,7 +146,15 @@ function update(){
     spawnEnemies();
 
     enemies.forEach(e=>{ e.update(); e.draw(); });
+
     towers.forEach(t=>{ t.update(); t.draw(); });
+
+    // Update projectiles
+    projectiles = projectiles.filter(p=>{
+        const remove = p.update();
+        p.draw();
+        return !remove;
+    });
 
     // Draw path
     ctx.beginPath();
@@ -124,16 +165,26 @@ function update(){
     ctx.stroke();
     ctx.closePath();
 
-    document.getElementById('scoreboard').innerText = `Score: ${score} | High Score: ${highScore}`;
+    // Increase tower limit every 10 score
+    towerLimit = 5 + Math.floor(score/10);
+
+    document.getElementById('scoreboard').innerText = `Score: ${score} | High Score: ${highScore} | Towers: ${towers.length}/${towerLimit}`;
+
     requestAnimationFrame(update);
 }
 
 // Place tower on click/tap
+function placeTower(x,y){
+    if(towers.length < towerLimit){
+        towers.push(new Tower(x,y));
+    }
+}
+
 canvas.addEventListener('click', e=>{
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    towers.push(new Tower(x,y));
+    placeTower(x,y);
 });
 
 canvas.addEventListener('touchstart', e=>{
@@ -141,7 +192,7 @@ canvas.addEventListener('touchstart', e=>{
     const rect = canvas.getBoundingClientRect();
     const x = e.touches[0].clientX - rect.left;
     const y = e.touches[0].clientY - rect.top;
-    towers.push(new Tower(x,y));
+    placeTower(x,y);
 }, {passive:false});
 
 update();
