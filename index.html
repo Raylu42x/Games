@@ -4,62 +4,82 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Games Hub</title>
+
 <style>
     body {
         margin: 0;
-        font-family: Arial, sans-serif;
-        background-color: #121212;
-        color: #fff;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        min-height: 100vh;
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #0b0f19;
+        color: #e0e0e0;
+        padding: 50px 20px;
+        text-align: center;
     }
 
+    /* Title in white with grey glow, matching home page */
     h1 {
-        margin-bottom: 2rem;
-        text-align: center;
-        font-size: 2.5rem;
+        color: #ffffff;
+        text-shadow: 0 0 10px #999;
+        margin-bottom: 40px;
+        letter-spacing: 1px;
+        font-size: 2.4rem;
     }
 
+    /* Button container for aligned width */
+    .container {
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    /* Neon-green game buttons */
     .game-button {
-        width: 80%;
-        max-width: 400px;
-        text-align: center;
-        padding: 20px;
-        margin: 10px 0;
-        font-size: 1.8rem;
-        color: #fff;
-        background-color: #1f1f1f;
-        border-radius: 15px;
+        display: block;
+        width: 100%;
+        padding: 16px 20px;
+        margin-bottom: 14px;
+
+        background: #111624;
+        border: 1px solid #00ff6a55;
+        border-radius: 10px;
+
+        color: #00ff88;
+        font-size: 1.3rem;
+        letter-spacing: 0.5px;
         text-decoration: none;
-        transition: background-color 0.3s, transform 0.2s;
-        touch-action: manipulation;
+
+        box-shadow: 0 0 12px #00ff6a33;
+        transition: 0.2s ease;
     }
 
     .game-button:hover {
-        background-color: #3333ff;
-        transform: scale(1.05);
+        border-color: #00ff6a;
+        color: #00ff6a;
+        box-shadow: 0 0 22px #00ff6a;
+        transform: translateX(6px);
     }
 
     @media (max-width: 500px) {
+        .game-button {
+            font-size: 1.1rem;
+            padding: 14px 16px;
+        }
         h1 {
             font-size: 2rem;
-        }
-        .game-button {
-            font-size: 1.5rem;
-            padding: 15px;
         }
     }
 </style>
 </head>
+
 <body>
+
     <h1>Games Hub</h1>
-    <a class="game-button" href="https://games.kervian.com/Snake-Game">Snake Game</a>
-    <a class="game-button" href="https://games.kervian.com/Balls">Balls</a>
-    <a class="game-button" href="https://games.kervian.com/Balloon">Balloon Game</a>
-    <a class="game-button" href="https://games.kervian.com/TD">Tower Defense</a>
+
+    <div class="container">
+        <a class="game-button" href="https://games.kervian.com/Snake-Game">Snake Game</a>
+        <a class="game-button" href="https://games.kervian.com/Balls">Balls</a>
+        <a class="game-button" href="https://games.kervian.com/Balloon">Balloon Game</a>
+        <a class="game-button" href="https://games.kervian.com/TD">Tower Defense</a>
+    </div>
+
 </body>
 </html>
-
